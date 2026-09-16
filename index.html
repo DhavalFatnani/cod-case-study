@@ -6,6 +6,7 @@
 <meta property="og:description" content="A custody ledger and approval workflow for ~550 cash orders a day across 200 riders. Case study by Dhaval Fatnani.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💵</text></svg>">
 <meta charset="utf-8">
+<script>try{var t=localStorage.getItem("theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tracking every rupee of cash on delivery | Dhaval Fatnani</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -88,9 +89,13 @@ td.b{font-weight:700}
 .links a:focus-visible{outline:2px solid var(--on-note);outline-offset:3px}
 .links a.primary{background:var(--on-note);color:var(--note)}
 @media (max-width:560px){.about{grid-template-columns:1fr}}
+.theme-toggle{position:fixed;top:14px;right:14px;z-index:10;font:500 14px "Schibsted Grotesk",system-ui,sans-serif;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:4px;padding:8px 12px;cursor:pointer}
+.theme-toggle:hover{border-color:var(--note);color:var(--note)}
+.theme-toggle:focus-visible{outline:2px solid var(--note);outline-offset:2px}
 </style>
 </head>
 <body>
+<button class="theme-toggle" id="themeToggle" type="button">Switch to dark</button>
 <div class="wrap">
 <header>
   <p class="byline">Case study by Dhaval Fatnani, Founding Product Operations &amp; Systems Lead, KNOT. <a href="#contact">Get in touch</a></p>
@@ -350,6 +355,14 @@ td.b{font-weight:700}
     el("rect",{x:x,y:y,width:14,height:18,rx:2,"class":"box-note"},b);
     for(var j=0;j<n;j++){el("circle",{cx:x+7,cy:y+4+j*5,r:1.8,"class":"dot-note"},b);}
   }
+})();
+(function(){
+  var btn=document.getElementById("themeToggle"),root=document.documentElement,mq=window.matchMedia("(prefers-color-scheme: dark)");
+  function current(){return root.getAttribute("data-theme")||(mq.matches?"dark":"light")}
+  function label(){var d=current()==="dark";btn.textContent=d?"Switch to light":"Switch to dark";btn.setAttribute("aria-label",btn.textContent)}
+  btn.addEventListener("click",function(){var next=current()==="dark"?"light":"dark";root.setAttribute("data-theme",next);try{localStorage.setItem("theme",next)}catch(e){}label()});
+  if(mq.addEventListener)mq.addEventListener("change",label);
+  label();
 })();
 </script>
 </body>
