@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="description" content="Case study: how KNOT tracks every rupee of cash on delivery, from rider to bank. By Dhaval Fatnani.">
+<meta property="og:title" content="Tracking every rupee of cash on delivery">
+<meta property="og:description" content="A custody ledger and approval workflow for ~550 cash orders a day across 200 riders. Case study by Dhaval Fatnani.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💵</text></svg>">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tracking every rupee of cash on delivery | Dhaval Fatnani</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#F5F7F6;--ink:#1B2B28;--soft:#51605C;--rule:#D5DDDA;--note:#1F5E52;--note-tint:#E2EEEA;--stamp:#A8322A;--stamp-tint:#F6E6E4;--card:#FFFFFF;--qr:#8A5A0B;--qr-tint:#F6EEDC;--on-note:#F2FAF7}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#111917;--ink:#E4ECE9;--soft:#9AAAA5;--rule:#2B3834;--note:#6CC3AE;--note-tint:#1A2D29;--stamp:#E0766C;--stamp-tint:#2E1D1B;--card:#16211F;--qr:#E3B25C;--qr-tint:#2C2415;--on-note:#0E1A17}}
+:root[data-theme="dark"]{--paper:#111917;--ink:#E4ECE9;--soft:#9AAAA5;--rule:#2B3834;--note:#6CC3AE;--note-tint:#1A2D29;--stamp:#E0766C;--stamp-tint:#2E1D1B;--card:#16211F;--qr:#E3B25C;--qr-tint:#2C2415;--on-note:#0E1A17}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:18px/1.65 "Source Serif 4",Georgia,serif}
+h1,h2,h3,.sans,figcaption,table{font-family:"Schibsted Grotesk",system-ui,-apple-system,Segoe UI,sans-serif}
+.wrap{max-width:780px;margin:0 auto;padding:0 22px}
+header{padding:72px 0 8px}
+.byline{color:var(--soft);font-size:15px;margin:0 0 20px}
+h1{font-size:clamp(34px,6vw,54px);line-height:1.05;letter-spacing:-.02em;font-weight:800;margin:0 0 18px}
+.lede{font-size:21px;color:var(--soft);margin:0}
+h2{font-size:26px;letter-spacing:-.01em;margin:64px 0 12px;font-weight:700}
+h3{font-size:18px;margin:26px 0 4px;font-weight:700}
+p{margin:0 0 16px}
+a{color:var(--note)}
+a:focus-visible{outline:2px solid var(--note);outline-offset:2px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:36px 0 0;font-family:"Schibsted Grotesk",sans-serif;font-size:15px}
+.facts div{padding:14px 16px 14px 0}
+.facts b{display:block;font-size:13px;color:var(--soft);font-weight:500}
+
+/* headline number */
+.big{margin:44px 0 0;display:grid;grid-template-columns:auto 1fr;gap:6px 28px;align-items:end;font-family:"Schibsted Grotesk",sans-serif}
+.big .n{font-size:clamp(64px,12vw,112px);font-weight:800;line-height:.9;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.big .from{color:var(--soft);text-decoration:line-through;text-decoration-thickness:4px;text-decoration-color:var(--stamp)}
+.big .to{color:var(--note)}
+.big .cap{font-size:15px;color:var(--soft);padding-bottom:6px}
+
+figure{margin:28px 0 8px}
+figcaption{font-size:14px;color:var(--soft);margin-top:10px}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+svg{display:block;max-width:100%;height:auto}
+.scroll svg{min-width:640px}
+svg text{font-family:"Schibsted Grotesk",system-ui,sans-serif;fill:var(--ink)}
+svg .soft{fill:var(--soft)}
+svg .box{fill:var(--card);stroke:var(--rule);stroke-width:1.5}
+svg .box-note{fill:var(--note-tint);stroke:var(--note);stroke-width:1.5}
+svg .box-bank{fill:var(--note);stroke:var(--note)}
+svg .on-note{fill:var(--on-note)}
+svg .box-stamp{fill:var(--stamp-tint);stroke:var(--stamp);stroke-width:1.5}
+svg .box-qr{fill:var(--qr-tint);stroke:var(--qr);stroke-width:1.5}
+svg .ln{stroke:var(--ink);stroke-width:1.6;fill:none}
+svg .ln-note{stroke:var(--note);stroke-width:2;fill:none}
+svg .ln-stamp{stroke:var(--stamp);stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+svg .ln-qr{stroke:var(--qr);stroke-width:2;fill:none;stroke-dasharray:7 5}
+svg .lane{fill:none;stroke:var(--rule);stroke-width:1}
+svg .dot{fill:var(--soft)}
+svg .dot-note{fill:var(--note)}
+svg .t-stamp{fill:var(--stamp)} svg .t-qr{fill:var(--qr)} svg .t-note{fill:var(--note)}
+
+.split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0;font-family:"Schibsted Grotesk",sans-serif;font-size:15px}
+.split div{background:var(--card);border:1px solid var(--rule);padding:14px 16px;border-radius:4px}
+.split .amt{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;display:block}
+.split .held{border-color:var(--stamp);background:var(--stamp-tint)}
+.split .held .amt{color:var(--stamp)}
+.decisions{list-style:none;padding:0;margin:8px 0 0}
+.decisions li{border-top:1px solid var(--rule);padding:4px 0 10px}
+.decisions li:last-child{border-bottom:1px solid var(--rule)}
+table{width:100%;border-collapse:collapse;font-size:15px;margin:12px 0 0}
+th,td{text-align:left;padding:10px 12px 10px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+th{color:var(--soft);font-weight:500;font-size:13px}
+td.b{font-weight:700}
+.note{font-family:"Schibsted Grotesk",sans-serif;font-size:14px;color:var(--soft);border-top:1px solid var(--rule);margin:72px 0 0;padding:20px 0 64px}
+@media (max-width:560px){.split{grid-template-columns:1fr} body{font-size:17px} .big{grid-template-columns:1fr}}
+.about{display:grid;grid-template-columns:1fr 1fr;gap:10px 28px;font-family:"Schibsted Grotesk",sans-serif;font-size:15px;margin:18px 0 0}
+.about div{border-top:1px solid var(--rule);padding:10px 0}
+.about b{display:block;font-size:13px;color:var(--soft);font-weight:500}
+.reach{margin:64px -22px 0;padding:40px 22px;background:var(--note);color:var(--on-note)}
+.reach-inner{max-width:780px;margin:0 auto}
+.reach h2{margin:0 0 8px;color:var(--on-note)}
+.reach p{margin:0 0 22px;opacity:.9}
+.links{display:flex;flex-wrap:wrap;gap:10px;font-family:"Schibsted Grotesk",sans-serif;font-size:15px}
+.links a{color:var(--on-note);border:1.5px solid currentColor;padding:9px 14px;border-radius:4px;text-decoration:none;font-weight:500}
+.links a:hover{background:var(--on-note);color:var(--note)}
+.links a:focus-visible{outline:2px solid var(--on-note);outline-offset:3px}
+.links a.primary{background:var(--on-note);color:var(--note)}
+@media (max-width:560px){.about{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <p class="byline">Case study by Dhaval Fatnani, Founding Product Operations &amp; Systems Lead, KNOT. <a href="#contact">Get in touch</a></p>
+  <h1>Tracking every rupee of cash on delivery, from a rider's pocket to the bank</h1>
+  <p class="lede">KNOT delivers fashion in 60 minutes from dark stores in Mumbai, and a large share of customers pay cash at the door. I diagnosed why cash kept going missing, redesigned how it is settled, and specified the system that now tracks it in production.</p>
+  <div class="facts">
+    <div><b>Company</b>KNOT, quick-commerce fashion</div>
+    <div><b>Scale</b>~1,000 orders a day, 55% paid in cash</div>
+    <div><b>Network</b>200 riders, 3 dark stores</div>
+    <div><b>My role</b>Diagnosis, product design, specs, UAT, production owner</div>
+    <div><b>Status</b>Live</div>
+  </div>
+</header>
+
+<div class="big">
+  <div class="n"><span class="from">~550</span></div><div class="cap">cash orders a day, each settled one at a time</div>
+  <div class="n"><span class="to">200</span></div><div class="cap">riders who now hand over their cash as bundles, with every order still traceable inside</div>
+</div>
+
+<h2>How it used to work</h2>
+<p>A warehouse team member would call a rider, pull the day's data, and ask for the money one order at a time. Marking a single order as settled took several clicks across different pages. At 100 to 150 orders a day that was tedious but manageable. At around 1,000 orders a day, with 55% paid in cash, that meant roughly 550 separate settlements every day across 200 riders, and it fell apart.</p>
+<p>Cash sat with riders for days. Some spent it on household needs and asked for it to be cut from their salary instead, which created a second thing to track: who owed what through deductions. Mismatches only surfaced at the fortnightly rider payout, and sometimes a month later.</p>
+
+<figure>
+  <svg viewBox="0 0 720 150" role="img" aria-label="Timeline: mismatches used to surface at the fortnightly or monthly payout; now they are visible the moment cash is handed over">
+    <text x="0" y="22" font-size="14" font-weight="700">Before</text>
+    <line class="ln" x1="80" y1="40" x2="700" y2="40"/>
+    <circle class="dot" cx="90" cy="40" r="6"/><text x="90" y="66" font-size="12" text-anchor="middle" class="soft">Cash collected</text>
+    <circle cx="470" cy="40" r="8" fill="var(--stamp)"/><text x="470" y="66" font-size="12" text-anchor="middle" class="t-stamp">Payout, day 15</text>
+    <circle cx="680" cy="40" r="8" fill="var(--stamp)" opacity=".5"/><text x="680" y="66" font-size="12" text-anchor="middle" class="t-stamp">or day 30</text>
+    <text x="280" y="30" font-size="12" text-anchor="middle" class="soft">nobody knows who holds what</text>
+    <text x="0" y="112" font-size="14" font-weight="700">After</text>
+    <line class="ln" x1="80" y1="130" x2="700" y2="130"/>
+    <circle class="dot" cx="90" cy="130" r="6"/>
+    <circle cx="130" cy="130" r="8" fill="var(--note)"/><text x="140" y="112" font-size="12" class="t-note">Any gap shows at the first handover. Current holder always visible.</text>
+  </svg>
+  <figcaption>When a cash mismatch becomes visible</figcaption>
+</figure>
+
+<h2>The reframe</h2>
+<p>The unit of settlement was wrong. An order is how the customer pays, but a rider is the person who physically carries the money. So riders now pack the day's cash into one bundle, the manager counts it and accepts it in one action, and each order stays attached underneath for tracing. On top of that sits a custody ledger: money is always in exactly one state, and it only moves when the next person verifies it.</p>
+
+<figure>
+  <svg viewBox="0 0 720 300" role="img" aria-label="Before: about 550 individual order settlements. After: cash grouped under 200 riders">
+    <text x="0" y="18" font-size="14" font-weight="700">Order level</text>
+    <text x="0" y="36" font-size="12" class="soft">~550 separate settlements a day</text>
+    <g id="dots"></g>
+    <text x="380" y="18" font-size="14" font-weight="700" class="t-note">Rider level</text>
+    <text x="380" y="36" font-size="12" class="soft">200 riders, each order still inside a bundle</text>
+    <g id="bundles"></g>
+  </svg>
+  <figcaption>Each dot is one COD order. Same money, counted per rider instead of per order.</figcaption>
+</figure>
+
+<h2>The full process</h2>
+<p>Cash leaves the customer's hand and passes through three people before it reaches the bank. Each of those people must accept the money before they become responsible for it, and Finance closes the loop by checking the bank statement. A QR option lets a rider pay the cash straight into the company account, skipping the physical chain.</p>
+
+<figure class="scroll">
+  <svg viewBox="0 0 900 470" role="img" aria-label="End-to-end COD flow across rider, area manager, store manager, bank and finance, with a QR shortcut">
+    <defs>
+      <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ink)"/></marker>
+      <marker id="an" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--note)"/></marker>
+      <marker id="as" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--stamp)"/></marker>
+      <marker id="aq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--qr)"/></marker>
+    </defs>
+    <!-- lanes -->
+    <g font-size="13" font-weight="700">
+      <rect class="lane" x="0" y="0" width="900" height="90"/><text x="12" y="22">Rider</text>
+      <rect class="lane" x="0" y="90" width="900" height="90"/><text x="12" y="112">Area manager</text>
+      <rect class="lane" x="0" y="180" width="900" height="90"/><text x="12" y="202">Store manager</text>
+      <rect class="lane" x="0" y="270" width="900" height="90"/><text x="12" y="292">Bank</text>
+      <rect class="lane" x="0" y="360" width="900" height="100"/><text x="12" y="382">Finance and Ops</text>
+    </g>
+    <g font-size="12" text-anchor="middle">
+      <!-- rider -->
+      <rect class="box" x="120" y="26" width="130" height="46" rx="6"/><text x="185" y="46">Delivers, takes cash</text><text x="185" y="62" class="soft">CS1</text>
+      <rect class="box" x="300" y="26" width="130" height="46" rx="6"/><text x="185" y="0"/><text x="365" y="46">Bundles the day's cash</text><text x="365" y="62" class="soft">CS2</text>
+      <line class="ln" x1="250" y1="49" x2="298" y2="49" marker-end="url(#a)"/>
+      <!-- asm -->
+      <rect class="box-note" x="300" y="112" width="130" height="46" rx="6"/><text x="365" y="132">Counts and accepts</text><text x="365" y="148" class="soft">CS3</text>
+      <line class="ln" x1="365" y1="72" x2="365" y2="110" marker-end="url(#a)"/>
+      <rect class="box" x="480" y="112" width="130" height="46" rx="6"/><text x="545" y="132">Groups bundles</text><text x="545" y="148" class="soft">CS4</text>
+      <line class="ln" x1="430" y1="135" x2="478" y2="135" marker-end="url(#a)"/>
+      <!-- reject back -->
+      <path class="ln-stamp" d="M300 124 C 270 110, 270 80, 300 66" marker-end="url(#as)"/>
+      <text x="252" y="104" class="t-stamp" text-anchor="end">Short? Reject</text>
+      <!-- sm -->
+      <rect class="box-note" x="480" y="202" width="130" height="46" rx="6"/><text x="545" y="222">Counts and accepts</text><text x="545" y="238" class="soft">CS5</text>
+      <line class="ln" x1="545" y1="158" x2="545" y2="200" marker-end="url(#a)"/>
+      <rect class="box-stamp" x="300" y="202" width="140" height="46" rx="6"/><text x="370" y="222" class="t-stamp">Count short</text><text x="370" y="238" class="t-stamp">Held for Ops</text>
+      <line class="ln-stamp" x1="480" y1="225" x2="442" y2="225" marker-end="url(#as)"/>
+      <!-- bank -->
+      <rect class="box-bank" x="660" y="292" width="130" height="46" rx="6"/><text x="725" y="312" class="on-note" font-weight="700">Deposited</text><text x="725" y="328" class="on-note">CS6, photo proof</text>
+      <path class="ln" d="M610 225 H 725 V 290" marker-end="url(#a)"/>
+      <!-- qr -->
+      <rect class="box-qr" x="660" y="26" width="160" height="46" rx="6"/><text x="740" y="46" class="t-qr">Pays via QR</text><text x="740" y="62" class="t-qr">gateway confirms</text>
+      <line class="ln-qr" x1="430" y1="49" x2="658" y2="49" marker-end="url(#aq)"/>
+      <path class="ln-qr" d="M820 49 H 850 V 315 H 792" marker-end="url(#aq)"/>
+      <text x="545" y="40" class="t-qr">skips the physical chain</text>
+      <!-- finance -->
+      <rect class="box-note" x="660" y="390" width="130" height="46" rx="6"/><text x="725" y="410">Matches bank</text><text x="725" y="426">statement</text>
+      <line class="ln-note" x1="725" y1="338" x2="725" y2="388" marker-end="url(#an)"/>
+      <rect class="box" x="300" y="390" width="300" height="46" rx="6"/><text x="450" y="410">Approves write-offs, rules on shortfalls,</text><text x="450" y="426">watches cash health across stores</text>
+      <line class="ln-stamp" x1="370" y1="248" x2="370" y2="388" marker-end="url(#as)"/>
+    </g>
+  </svg>
+  <figcaption>End-to-end flow. Green boxes are verification points where custody changes hands. Scroll sideways on a phone.</figcaption>
+</figure>
+
+<h2>Eight states, and nothing in between</h2>
+<p>Six custody states follow the money. Two end states cover cash that is written off and deliveries that never really happened. The backend rejects any move that isn't on this diagram, so nobody can deposit cash a rider still holds, and nobody can quietly edit an amount.</p>
+
+<figure class="scroll">
+  <svg viewBox="0 0 900 300" role="img" aria-label="State machine: CS1 to CS6 with rejections back, QR jump to CS6, and exits to Defaulted and Voided from CS1">
+    <defs>
+      <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ink)"/></marker>
+      <marker id="bs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--stamp)"/></marker>
+      <marker id="bq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--qr)"/></marker>
+    </defs>
+    <g font-size="12" text-anchor="middle">
+      <g font-size="20" font-weight="800">
+        <rect class="box" x="10" y="110" width="110" height="60" rx="8"/><text x="65" y="140">CS1</text>
+        <rect class="box" x="160" y="110" width="110" height="60" rx="8"/><text x="215" y="140">CS2</text>
+        <rect class="box-note" x="310" y="110" width="110" height="60" rx="8"/><text x="365" y="140">CS3</text>
+        <rect class="box" x="460" y="110" width="110" height="60" rx="8"/><text x="515" y="140">CS4</text>
+        <rect class="box-note" x="610" y="110" width="110" height="60" rx="8"/><text x="665" y="140">CS5</text>
+        <rect class="box-bank" x="770" y="110" width="120" height="60" rx="8"/><text x="830" y="140" class="on-note">CS6</text>
+      </g>
+      <g font-size="11" class="soft">
+        <text x="65" y="160">with rider</text><text x="215" y="160">bundled</text><text x="365" y="160">area mgr</text><text x="515" y="160">grouped</text><text x="665" y="160">store mgr</text><text x="830" y="160" class="on-note">in bank</text>
+      </g>
+      <line class="ln" x1="120" y1="130" x2="158" y2="130" marker-end="url(#b)"/>
+      <line class="ln" x1="270" y1="130" x2="308" y2="130" marker-end="url(#b)"/>
+      <line class="ln" x1="420" y1="130" x2="458" y2="130" marker-end="url(#b)"/>
+      <line class="ln" x1="570" y1="130" x2="608" y2="130" marker-end="url(#b)"/>
+      <line class="ln" x1="720" y1="130" x2="768" y2="130" marker-end="url(#b)"/>
+      <text x="139" y="122">bundle</text><text x="289" y="122">accept</text><text x="439" y="122">group</text><text x="589" y="122">accept</text><text x="744" y="122">deposit</text>
+      <!-- rejects -->
+      <path class="ln-stamp" d="M340 170 Q 190 215 65 172" marker-end="url(#bs)"/>
+      <text x="200" y="214" class="t-stamp">area manager rejects, cash back to rider</text>
+      <path class="ln-stamp" d="M640 170 Q 575 205 515 172" marker-end="url(#bs)"/>
+      <text x="580" y="210" class="t-stamp">rejected to area mgr</text>
+      <!-- qr -->
+      <path class="ln-qr" d="M65 110 Q 450 -10 830 108" marker-end="url(#bq)"/>
+      <text x="450" y="46" class="t-qr">QR paid, gateway confirms (from CS1, CS2 or CS4 as a whole bundle)</text>
+      <!-- terminals -->
+      <rect class="box-stamp" x="10" y="240" width="140" height="44" rx="8"/><text x="80" y="266" class="t-stamp" font-weight="700">DEFAULTED</text>
+      <rect class="box" x="200" y="240" width="140" height="44" rx="8"/><text x="270" y="266" font-weight="700">VOIDED</text>
+      <line class="ln-stamp" x1="50" y1="170" x2="50" y2="238" marker-end="url(#bs)"/>
+      <path class="ln" d="M100 170 Q 200 200 250 238" marker-end="url(#b)"/>
+      <text x="420" y="258" class="soft" text-anchor="start">Write-off after approval, or delivery reversed.</text>
+      <text x="420" y="276" class="soft" text-anchor="start">Both only possible while cash is still loose with the rider.</text>
+    </g>
+  </svg>
+  <figcaption>The state machine. No path runs backwards except an explicit rejection, and every move is logged.</figcaption>
+</figure>
+
+<h2>Key design decisions</h2>
+<ol class="decisions">
+  <li><h3>An append-only record for every movement</h3><p>Each change stores who did it, their role, the reason, the time, and the before and after state. The database blocks edits and deletes, which is what made Finance willing to trust the numbers.</p></li>
+  <li><h3>Nobody certifies their own handover</h3><p>The area manager counts the rider's cash, the store manager counts the area manager's, and Finance checks the deposit against the bank. Deposits carry photo proof.</p></li>
+  <li><h3>Track pieces of money, not whole orders</h3><p>Riders sometimes hand over part of an order's cash and bring the rest later. Freezing the whole order would stall money already in hand, so the system splits it.</p>
+  <div class="split"><div><span class="amt">₹800</span>Handed over now, moves on to the bank today</div><div class="held"><span class="amt">₹200</span>Stays with the rider as its own piece, tracked until collected</div></div></li>
+  <li><h3>A QR path around the physical chain</h3><p>A manager generates a payment QR for one order or a whole bundle. Once the payment gateway confirms, that cash goes straight to the bank state. The cash is reserved before the gateway is called, and stale reservations clear themselves, so a failed request never strands money.</p></li>
+  <li><h3>Access by capability, fenced by store</h3><p>Permissions are granted one at a time, so a store lead can hold both manager roles. People only see their own stores, and identity always comes from the signed-in session, never from what the app sends.</p></li>
+</ol>
+
+<h2>When the clean flow breaks</h2>
+<p>Most of the design effort went into exceptions, because that's where money goes missing. Every deviation is recorded as an exception. There's no side ledger for adjustments.</p>
+<div class="scroll"><table>
+<thead><tr><th>Situation</th><th>What happens</th></tr></thead>
+<tbody>
+<tr><td>Rider hands over part now, rest later</td><td>Cash is split, the remainder is chased on its own</td></tr>
+<tr><td>Customer paid less and the gap won't be recovered</td><td>Partial write-down, needs approval</td></tr>
+<tr><td>The money is gone</td><td>Proposed default, needs approval</td></tr>
+<tr><td>Store manager's count is short</td><td>Bundle is frozen until Ops rules on it</td></tr>
+<tr><td>Rider leaves while holding cash</td><td>The debt moves to their logistics vendor</td></tr>
+<tr><td>Delivery was recorded by mistake</td><td>Record is voided, no loss booked</td></tr>
+<tr><td>Cash held or left undeposited too long</td><td>Hourly checks flag it against time limits Ops sets</td></tr>
+</tbody></table></div>
+
+<h3 style="margin-top:40px">Two signatures above a limit</h3>
+<figure class="scroll">
+  <svg viewBox="0 0 760 170" role="img" aria-label="Write-off approval: area manager raises, store manager approves within limit, above limit Ops head must also sign">
+    <defs><marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ink)"/></marker></defs>
+    <g font-size="12" text-anchor="middle">
+      <rect class="box" x="0" y="60" width="140" height="50" rx="6"/><text x="70" y="82">Area manager</text><text x="70" y="98" class="soft">raises write-off</text>
+      <rect class="box" x="190" y="60" width="140" height="50" rx="6"/><text x="260" y="82">Store manager</text><text x="260" y="98" class="soft">approves</text>
+      <line class="ln" x1="140" y1="85" x2="188" y2="85" marker-end="url(#c)"/>
+      <rect class="box-note" x="420" y="4" width="150" height="50" rx="6"/><text x="495" y="26">Within store limit</text><text x="495" y="42" class="soft">booked, closed</text>
+      <rect class="box-stamp" x="420" y="116" width="150" height="50" rx="6"/><text x="495" y="138" class="t-stamp">Above limit</text><text x="495" y="154" class="t-stamp">still open</text>
+      <path class="ln" d="M330 85 C 370 85, 380 29, 418 29" marker-end="url(#c)"/>
+      <path class="ln" d="M330 85 C 370 85, 380 141, 418 141" marker-end="url(#c)"/>
+      <rect class="box-note" x="620" y="116" width="140" height="50" rx="6"/><text x="690" y="138">Ops head signs</text><text x="690" y="154" class="soft">then booked</text>
+      <line class="ln" x1="570" y1="141" x2="618" y2="141" marker-end="url(#c)"/>
+    </g>
+  </svg>
+  <figcaption>Each store's limit is a percentage of order value or a flat rupee cap. Old limits are kept, so any past write-off can be checked against the rule in force that day.</figcaption>
+</figure>
+
+<h2>Results</h2>
+<table>
+<thead><tr><th>Measure</th><th>Before</th><th>After</th></tr></thead>
+<tbody>
+<tr><td>How cash is settled</td><td class="b">~550 orders a day, one at a time</td><td class="b">By rider bundle, across 200 riders</td></tr>
+<tr><td>When a mismatch shows up</td><td>At payout, every 15 to 30 days</td><td>At the first handover</td></tr>
+<tr><td>Who holds the cash right now</td><td>Unknown until someone called around</td><td>Visible for every rupee, at any moment</td></tr>
+<tr><td>Write-offs</td><td>Informal, often via salary deduction</td><td>Recorded, with named approvers</td></tr>
+</tbody></table>
+
+<h2>My part</h2>
+<p>I spotted that order-by-order settlement would not survive our growth and reframed the settlement unit around the rider. I wrote the PRD, functional spec and technical spec, including the state model, exception handling and approval rules. I worked through the edge cases with Ops and store teams, ran UAT, and I own the system in production. Engineering built it. After launch I wrote an as-built PRD that documents every state, role, screen, exception and dashboard number, so Ops and Finance work from one reference that matches the live system.</p>
+
+<h2>What's still open</h2>
+<p>Two gaps remain. Because shortfalls now show up against a bundle, finding the exact order still relies on the order-level detail underneath. And when riders pick up returned items but record "nothing returned", the expected cash is wrong before it ever enters this system, so that fix belongs in the rider app's returns flow.</p>
+
+<h2>What I took away</h2>
+<p>The hard part was deciding what the system should refuse. Every shortcut that looked helpful, like editing a wrong amount or depositing cash still out with a rider, broke the one promise Finance cared about. Writing the rules down as a state machine first made those calls easy to defend.</p>
+
+<h2>About me</h2>
+<p>I'm Dhaval Fatnani, and I build the systems that keep a fast delivery operation running. I joined KNOT as an intern in November 2024 and grew into its Founding Product Operations &amp; Systems Lead. Along the way I set up our first dark store from zero, wrote the operating procedures for 60-minute delivery, and helped take the business from about 150 orders a day to around 1,000.</p>
+<p>Today I own KNOT's warehouse management system end to end and the cost side of the P&amp;L: cost per order, operating spend and rider payouts. I've shipped more than 12 internal tools that run in production, going from problem to working tool myself, with Claude for thinking and Cursor for building. The COD system on this page is different: I designed and specified it, and our engineering team built it.</p>
+<div class="about">
+  <div><b>Current role</b>Founding Product Operations &amp; Systems Lead, KNOT (Aug 2025 to now)</div>
+  <div><b>Earlier at KNOT</b>Growth &amp; Operations Specialist, Mumbai; Growth &amp; Strategy Associate, Bengaluru</div>
+  <div><b>What I work on</b>Warehouse systems, rider operations, cash and payouts, internal tooling</div>
+  <div><b>Before KNOT</b>Internships at GeeksforGeeks (MERN developer), Inagiffy and Nucleon Health</div>
+  <div><b>Education</b>BTech, Computer Science, Navrachana University, Vadodara (CGPA 8.64)</div>
+  <div><b>Based in</b>Mumbai, India</div>
+</div>
+</div>
+
+<section class="reach" id="contact" aria-labelledby="reach-title">
+  <div class="reach-inner">
+    <h2 id="reach-title">Reach out to me</h2>
+    <p>Want to talk about cash flows, warehouse systems, or operations that have outgrown their spreadsheets? Write to me. I reply to every message.</p>
+    <div class="links">
+      <a class="primary" href="mailto:info.dhavalfatnani@gmail.com">info.dhavalfatnani@gmail.com</a>
+      <a href="https://linkedin.com/in/dhavalfatnani" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="https://github.com/dhavalfatnani" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://dhavalfatnani.vercel.app" target="_blank" rel="noopener">Portfolio</a>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+<p class="note">Shared with KNOT's internal details removed. Rupee amounts are illustrative. Order and rider counts are approximate. &copy; 2026 Dhaval Fatnani</p>
+</div>
+<script>
+(function(){
+  var ns="http://www.w3.org/2000/svg";
+  function el(t,a,p){var e=document.createElementNS(ns,t);for(var k in a)e.setAttribute(k,a[k]);p.appendChild(e);}
+  var d=document.getElementById("dots");
+  for(var i=0;i<550;i++){el("circle",{cx:5+(i%34)*10,cy:54+Math.floor(i/34)*10,r:3.2,"class":"dot"},d);}
+  var b=document.getElementById("bundles");
+  for(var k=0;k<200;k++){var x=382+(k%20)*16.5,y=50+Math.floor(k/20)*22,n=k<150?3:2;
+    el("rect",{x:x,y:y,width:14,height:18,rx:2,"class":"box-note"},b);
+    for(var j=0;j<n;j++){el("circle",{cx:x+7,cy:y+4+j*5,r:1.8,"class":"dot-note"},b);}
+  }
+})();
+</script>
+</body>
+</html>
